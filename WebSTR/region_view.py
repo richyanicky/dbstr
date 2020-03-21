@@ -7,7 +7,7 @@ import re
 from plotly.subplots import make_subplots
 from dbutils import *
 
-MAXREGIONSIZE = 1000000
+MAXREGIONSIZE = 1500000
 
 def GetRegionData(region_query, DbSTRPath):
     ct = connect_db(DbSTRPath).cursor()
@@ -398,7 +398,7 @@ def GetGeneShapes(region_data, region_query, DbSTRPath):
     colpos = region_query.find(":")
     if colpos < 0: # search is by gene
         if region_query[:3] == "ENS":
-            gene_query = ("select at.value from newattrib at where at.id='{}' and at.attrib='gene_name'").format(region_query.split(".")[0])
+            gene_query = ("select at.value from newattrib at where at.id='{}' ").format(region_query.split(".")[0])
             gene_df = ct.execute(gene_query).fetchall()
             genes = [item[0] for item in gene_df]
         else:
@@ -408,7 +408,7 @@ def GetGeneShapes(region_data, region_query, DbSTRPath):
         start = int(region_query.split(":")[1].split("-")[0])
         end = int(region_query.split(":")[1].split("-")[1])
         #gene_query = ("select at.value from features fe, newattrib at where fe.seqid='{}' and fe.start>={} and fe.end<={} and fe.id=at.id and at.attrib='gene_name'").format(chrom, start, end)
-        gene_query = ("select value from newattrib where attrib = 'gene_name' and id in (select id from features where  seqid='{}' and start>={} and end<={} group by id) ").format(chrom, start, end)
+        gene_query = ("select value from newattrib where attrib = 'gene_name' and id in (select id from gene_annotations where  seqid='{}' and start>={} and end<={} group by id) ").format(chrom, start, end)
         gene_df = ct.execute(gene_query).fetchall()
         genes = list(set([item[0] for item in gene_df]))
     shapes = []
@@ -421,7 +421,7 @@ def GetGeneShapes(region_data, region_query, DbSTRPath):
     # Then, for each gene get features 
     for i in range(len(genes)):
         gene = genes[i]
-        feature_query = ("select fe.id,fe.start,fe.end,fe.strand from features fe, newattrib at where at.attrib='gene_name' and at.value='{}' and fe.id=at.id").format(gene)
+        feature_query = ("select fe.id,fe.start,fe.end,fe.strand from gene_annotations fe, gene_names_xref at where at.value='{}' and fe.id=at.id").format(gene)
         feature_df = ct.execute(feature_query).fetchall()
         if len(feature_df)==0: continue
         gene_start = min([int(item[1]) for item in feature_df])
