@@ -4,6 +4,7 @@ import numpy as np
 import plotly
 import plotly.graph_objs as go
 import re
+from plotly.subplots import make_subplots
 from dbutils import *
 
 MAXREGIONSIZE = 1000000
@@ -21,8 +22,8 @@ def GetRegionData(region_query, DbSTRPath):
         else: 
             the_attrib = "gene_name"
         gene_query = ("select fe.seqid,min(fe.start),max(fe.end)"
-                      " from features fe, newattrib at "
-                      " where at.value='{}' and at.attrib='{}' and fe.id=at.id").format(region_query, the_attrib)
+                      " from gene_annotations fe, gene_names_xref at "
+                      " where at.value='{}' and fe.id=at.id").format(region_query)
         gene_df = ct.execute(gene_query).fetchall()
         if len(gene_df) == 0 or None in gene_df[0]:
             chrom = None
@@ -47,8 +48,9 @@ def GetRegionData(region_query, DbSTRPath):
     if chrom is not None:
         region_query = ("select str.chrom,str.strid,str.motif,str.start,str.end,str.period,str.length"
                         " from"
-                        " strlocmotif str"
+                        " tr_reference str"
                         " where str.chrom = '{}' and str.start >= {} and str.end <= {}").format(chrom, start, end)
+        print(region_query)
         df = ct.execute(region_query).fetchall()
         if len(df) == 0: return pd.DataFrame({})
         df_df = pd.DataFrame.from_records(df)
@@ -158,9 +160,9 @@ def GetestrCalc(strid,DbSTRPath):
     if len(stridt) == 1: x1 = "('" + ''.join(stridt) + "')"
     stridt= x1
     gquery = ("select strid str_id,  group_concat(tissue || ';' || round(beta,1) || ';' || genename, ':') tissues "
-              "from estr_gtex2 estr, "
+              "from estr_gtex estr, "
               "tissues ti, "
-              "strlocmotif str "
+              "tr_reference str "
               "where estr.chrom = str.chrom "
               "and estr.strstart = str.start "
               "and estr.strend = str.end "
@@ -188,7 +190,7 @@ def GetHCalc(strid,DbSTRPath):
               " from"
               " (select af.cohort_id, af.str_id, (end-start+1+af.length)/period copies,sum(nvals) nvals, tvals.totvals from"
               " allelefreq af,"
-              " strlocmotif strm,"
+              " tr_reference strm,"
               " (select cohort_id,str_id,sum(nvals) totvals"
               " from allelefreq"
               " where str_id in  {} "
@@ -277,11 +279,23 @@ def GetFreqPlotlyJSON2(freq_dist):
     data1 = pd.DataFrame(np.array(freq_dist).reshape(-1,3), columns = list("abc"))
     minx = min(data1['b'])-1
     maxx = max(data1['b'])+1
+    crow=1
+    ccol=1
+    nrows=int(round(max(data1['a'])/4,0))
+    for x in range(1,max(data1['a'])):
+        fig = make_subplots(rows=nrows,cols=4)
+        cdat=data1.loc[data1['a'] == x]
+        fig.add_trace(go.Bar(y=cdat['c'],x=cdat['b']),row=crow,col=ccol)
+        ccol=ccol+1
+        if(ccol == 5): 
+            crow=crow+1
+            ccol=1
+    print(json.dumps(fig.show()))
+
     x1=data1.loc[data1['a'] == 1]
     x2=data1.loc[data1['a'] == 2]
     x3=data1.loc[data1['a'] == 3]
     x4=data1.loc[data1['a'] == 4]
-    x5=data1.loc[data1['a'] == 5]   
     #for Cohort, X in data1.groupby('a'):
     trace1 = go.Bar(
         x=x1['b'],
@@ -309,19 +323,12 @@ def GetFreqPlotlyJSON2(freq_dist):
         yaxis='y4'
     )
 
-    trace5 = go.Bar(
-        x=x5['b'],
-        y=x5['c'],
-        xaxis='x5',
-        yaxis='y5'
-    )
-
-    data = [trace1, trace2, trace3, trace4, trace5]
+    data = [trace1, trace2, trace3, trace4]
 
     layout = go.Layout(
         showlegend=False,
         xaxis=dict(
-            domain=[0, 0.19],
+            domain=[0, 0.24],
             title="Gtex",
             range=[minx, maxx]
         ),
@@ -329,7 +336,7 @@ def GetFreqPlotlyJSON2(freq_dist):
             title="Count"
         ),
         xaxis2=dict(
-            domain=[0.2, 0.39],
+            domain=[0.25, 0.49],
             anchor='y2',
             title="1000 Genomes Africa",
             range=[minx, maxx]
@@ -338,7 +345,7 @@ def GetFreqPlotlyJSON2(freq_dist):
             anchor='x2'
         ),
         xaxis3=dict(
-            domain=[0.4, 0.59],
+            domain=[0.5, 0.74],
             anchor='y3',
             title="1000 Genomes East Asia",
             range=[minx, maxx]
@@ -347,22 +354,13 @@ def GetFreqPlotlyJSON2(freq_dist):
             anchor='x3'
         ),
         xaxis4=dict(
-            domain=[0.6, 0.79],
+            domain=[0.75, 1.0],
             anchor='y4',
             title="1000 Genomes Europe",
             range=[minx, maxx]
         ),
         yaxis4=dict(
             anchor='x4'
-        ),
-        xaxis5=dict(
-            domain=[0.8, 1],
-            anchor='y5',
-            title="Simons Simplex Collection",
-            range=[minx, maxx]
-        ),
-        yaxis5=dict(
-            anchor='x5'
         ))
 
     plotly_plot_json_datab = json.dumps(data, cls=plotly.utils.PlotlyJSONEncoder)

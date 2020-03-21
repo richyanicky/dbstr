@@ -5,7 +5,7 @@ WebSTR database application
 
 import argparse
 #import dash
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, redirect, render_template, request, session, url_for, current_app
 #from dash.dependencies import Output, Input, State
 from collections import deque
 import pandas as pd
@@ -70,7 +70,7 @@ def awesome():
         Regions_data = pd.merge(Regions_data, estr_data, left_on='strid', right_on = 'str_id', how='left')
         Regions_data = Regions_data.replace(np.nan, '', regex=True)
         plotly_plot_json, plotly_layout_json = GetGenePlotlyJSON(Regions_data, region_query, DbSTRPath)
-        return render_template('view2.html',table=Regions_data.to_records(index=False),
+        return render_template('region.html',table=Regions_data.to_records(index=False),
                                graphJSON=plotly_plot_json, layoutJSON=plotly_layout_json,
                                chrom=region_data["chrom"].values[0].replace("chr",""),
                                strids=list(Regions_data["strid"]))
@@ -81,12 +81,12 @@ reffa = pyfaidx.Fasta(RefFaPath)
 @server.route('/locus')
 def locusview():
     str_query = request.args.get('STRID')
-    print(str_query)
     chrom, start, end, seq = GetSTRInfo(str_query, DbSTRPath, reffa)
     gtex_data = GetGTExInfo(str_query, DbSTRPath)
     mut_data = GetMutInfo(str_query, DbSTRPath)
     imp_data = GetImputationInfo(str_query, DbSTRPath)
     imp_allele_data = GetImputationAlleleInfo(str_query, DbSTRPath)
+    Overlap_STRS = GetOverlap_STRS(chrom, start, end, str_query, DbSTRPath)
     freq_dist = GetFreqSTRInfo(str_query, DbSTRPath)
     if len(mut_data) != 1: mut_data = None
     else:
@@ -100,11 +100,12 @@ def locusview():
     if len(imp_allele_data) == 0: imp_allele_data = None
     if len(freq_dist) > 0: plotly_plot_json_datab, plotly_plot_json_layoutb = GetFreqPlotlyJSON2(freq_dist)
     if len(freq_dist) == 0: plotly_plot_json_datab = None
+    print(plotly_plot_json_layoutb)
     if len(freq_dist) == 0: plotly_plot_json_layoutb = None
     return render_template('locus.html', strid=str_query,
                            graphJSONx=plotly_plot_json_datab,graphlayoutx=plotly_plot_json_layoutb, 
                            chrom=chrom.replace("chr",""), start=start, end=end, strseq=seq,
-                           estr=gtex_data, mut_data=mut_data,
+                           estr=gtex_data, mut_data=mut_data, Overlap_STRS=Overlap_STRS,
                            imp_data=imp_data, imp_allele_data=imp_allele_data,freq_dist=freq_dist)
 
 #################### Render HTML pages ###############
@@ -116,6 +117,10 @@ def dbSTRHome():
 @server.route('/faq')
 def dbSTRFAQ():
     return render_template("faq.html")
+
+@server.route('/test')
+def testit():
+    return current_app.send_static_file('index.html')
 
 @server.route('/contact')
 def dbSTRContact():

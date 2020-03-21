@@ -2,6 +2,17 @@
 
 {% block body %}
 
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-157646340-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+        gtag('config', 'UA-157646340-1');
+</script>
+
 <!-- Div for the plotly chart -->
 <script type="text/javascript">
 $('button').collapse({
@@ -34,7 +45,12 @@ table.tables1 {
 <div class="container-fluid">
   <div class="row">
     <div class="col-md-10 col-md-offset-1">
-
+	    {% if  Overlap_STRS is not none %} 
+	    {% for str in Overlap_STRS %}
+	    <h5> Other STRs that intersect with this region </h5>
+	    <a href=/locus?STRID={{ str[0] }} target="_blank"> {{ str[0] }} </a>
+	    {% endfor %}
+	    {% endif %} 
       <h1>chr{{ chrom }}:{{ start }}-{{ end }}</h1>
 <!--      <font size="4">Population allele frequencies for <a href="dashapp?query={{ strid }}?chrom={{ chrom }}" target="_blank" >chr{{ chrom }}:{{ start }}-{{ end }}</a></font>
       <br><br> -->
